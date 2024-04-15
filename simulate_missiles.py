@@ -10,15 +10,15 @@ from mpl_toolkits.mplot3d import Axes3D
 from object import Object
 from model import Model
 
-# Program arguments
-STEP_MS = 0.1
-REALTIME = False
 
-
-def simulate_missiles(n_missiles, step_ms, d_s):
+def simulate_missiles(n_missiles, step_ms, d_s, realtime, plot):
     # Initialization
-    model = Model(STEP_MS)
-    test_obj = Object(pos=[0, 0, 2500], vel=[30, 40, 0], acc=[4, 3, 0])
+
+    print(realtime)
+
+    model = Model(step_ms / 1000)
+    test_obj = Object(pos=[0, 0, 0], vel=[0, 0, 0], acc=[66, 0, 110])
+    booster = True
     model.obj_container.append(test_obj)
 
     # Preparation
@@ -29,25 +29,33 @@ def simulate_missiles(n_missiles, step_ms, d_s):
     while time_passed_ms / 1000 < d_s:
         start_time = time.time()
 
+        if booster:
+            if time_passed_ms >= 30 * 1000:
+                test_obj.add_to_acceleration([-66, 0, -110])
+                booster = False
+
         # Run simulation and record kinematics
         model.trigger(record_kinematics=True)
+        if time_passed_ms % 1000 == 0:
+            print(test_obj.current_pos)
 
         end_time = time.time()
         execution_time = end_time - start_time
-        if execution_time < step_ms and REALTIME:
+        if execution_time < step_ms and realtime:
             time.sleep(step_ms / 1000 - execution_time)
 
         time_passed_ms += step_ms
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
+    if plot:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
 
-    ax.plot(
-        test_obj.kinematics_table["pos_x"],
-        test_obj.kinematics_table["pos_y"],
-        test_obj.kinematics_table["pos_z"],
-    )
-    plt.show()
+        ax.plot(
+            test_obj.kinematics_table["pos_x"],
+            test_obj.kinematics_table["pos_y"],
+            test_obj.kinematics_table["pos_z"],
+        )
+        plt.show()
 
 
 def main():
@@ -59,10 +67,20 @@ def main():
         help="Timesteps the simulation takes for each calculation in ms",
     )
     parser.add_argument("d_s", type=int, help="How long the simulation runs in seconds")
+    parser.add_argument(
+        "--realtime",
+        action="store_true",
+        help="Whether or not the simulation should run in realtime",
+    )
+    parser.add_argument(
+        "--plot",
+        action="store_true",
+        help="Whether a plot of the objects trajectories should be shown",
+    )
 
     args = parser.parse_args()
 
-    simulate_missiles(args.n_missiles, args.step_ms, args.d_s)
+    simulate_missiles(args.n_missiles, args.step_ms, args.d_s, args.realtime, args.plot)
 
 
 if __name__ == "__main__":

@@ -29,7 +29,6 @@ class Object:
 
     def trigger(self, timestep_s):
         t = timestep_s
-
         self.current_pos = (
             self.current_pos + self.current_vel * t + 0.5 * self.current_acc * t**2
         )

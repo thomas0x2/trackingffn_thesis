@@ -1,3 +1,5 @@
+import numpy as np
+
 from object import Object
 
 
@@ -5,7 +7,7 @@ gravity = [0, 0, -9.81]
 
 
 """
-
+    The model 
     - obj_container (Array(Object)):
     - obj_state_table (Dictionary(Object, Array)): A dictionary holding the stats of each object in the model. The columns of the state array
         are gravity activated,
@@ -33,5 +35,5 @@ class Model:
 
             if obj.current_pos[2] < 0:
                 obj.current_pos[2] = 0
-                obj.current_vel[2] = 0
-                obj.current_acc[2] = 0
+                obj.current_vel = np.array([0, 0, 0])
+                obj.current_acc = np.array([0, 0, 0])
