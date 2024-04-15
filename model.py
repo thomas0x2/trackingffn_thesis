@@ -14,20 +14,24 @@ gravity = [0, 0, -9.81]
 
 class Model:
 
-    def __init__(self, ts_s, level: float = 0):
+    def __init__(self, step_s):
         self.obj_container = []
         self.obj_state_table = {}
-        self.level = level
-        self.ts_s = ts_s
+        self.step_s = step_s
 
     def prepare(self):
         for obj in self.obj_container:
             obj.add_to_acceleration(gravity)
             self.obj_state_table[obj] = [True]
 
-    def trigger(self):
+    def trigger(self, record_kinematics=False):
         for obj in self.obj_container:
-            obj.trigger(self.ts_s)
+            obj.trigger(self.step_s)
 
-            if obj.current_pos[2] < self.level:
-                obj.current_pos[2] = self.level
+            if record_kinematics:
+                obj.record_kinematics(self.step_s)
+
+            if obj.current_pos[2] < 0:
+                obj.current_pos[2] = 0
+                obj.current_vel[2] = 0
+                obj.current_acc[2] = 0

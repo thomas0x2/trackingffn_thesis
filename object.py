@@ -25,25 +25,10 @@ class Object:
         self.current_acc = args["acc"]
         self.max_acc = args["max_acc"]
 
-        self.kinematics_table = pd.DataFrame(
-            [
-                {
-                    "t_s": 0,
-                    "pos_x": pos[0],
-                    "pos_y": pos[1],
-                    "pos_z": pos[2],
-                    "vel_x": vel[0],
-                    "vel_y": vel[1],
-                    "vel_z": vel[2],
-                    "acc_x": acc[0],
-                    "acc_y": acc[1],
-                    "acc_z": acc[2],
-                }
-            ]
-        )
+        self.kinematics_table = pd.DataFrame()
 
-    def trigger(self, ts_s):
-        t = ts_s
+    def trigger(self, timestep_s):
+        t = timestep_s
 
         self.current_pos = (
             self.current_pos + self.current_vel * t + 0.5 * self.current_acc * t**2
@@ -67,7 +52,8 @@ class Object:
         new_acceleration = self.current_acc + acceleration
         self.current_acc = new_acceleration
 
-    def record_kinematics(self, t_s):
+    def record_kinematics(self, step_s):
+        t_s = len(self.kinematics_table) * step_s
         record = pd.DataFrame(
             [
                 {
