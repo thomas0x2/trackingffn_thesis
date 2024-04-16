@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 """
 Simulate Missiles
     In this script, missile trajectories can be simulated. Goal of this
@@ -7,11 +9,9 @@ Simulate Missiles
     This script requires Matplotlib.pyplot and the projects Class modules to 
     be installed in the environment its running in.
 """
-
-#! /usr/bin/env python3
-
 import time
 import argparse
+import math
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -41,12 +41,14 @@ def simulate_missiles(n_missiles, step_ms, d_s, realtime, plot):
 
     # Initialization
     model = Model(step_ms / 1000)
-    test_obj = Object(pos=[0, 0, 0], vel=[0, 0, 0], acc=[66, 0, 110], record=True)
+    test_obj = Object(pos=[0, 0, 0], vel=[0, 0, 0], acc=[66, 33, 110], record=True)
     booster = True
-    model.obj_container.append(test_obj)
+    model.add_Object(test_obj)
 
     # Preparation
     model.prepare()
+    max_test_height = 0
+    max_test_velocity = 0
 
     # Running
     time_passed_ms = 0
@@ -56,7 +58,7 @@ def simulate_missiles(n_missiles, step_ms, d_s, realtime, plot):
         # TODO: Implement booster in new missile class
         if booster:
             if time_passed_ms >= 30 * 1000:
-                test_obj.add_to_acceleration([-66, 0, -110])
+                test_obj.add_to_acceleration([-66, -33, -110])
                 booster = False
 
         # Run simulation and record motion
@@ -71,8 +73,24 @@ def simulate_missiles(n_missiles, step_ms, d_s, realtime, plot):
             if execution_time < step_ms:
                 time.sleep(step_ms / 1000 - execution_time)
 
+        # Record max height
+        test_height = test_obj.pos[2]
+        if test_height > max_test_height:
+            max_test_height = test_height
+
+        # Record max velocity
+        test_velocity = math.sqrt(sum(test_obj.vel[i] ** 2 for i in range(3)))
+        if test_velocity > max_test_velocity:
+            max_test_velocity = test_velocity
+
         # Increment the passed time
         time_passed_ms += step_ms
+
+    print("Flight Statistic")
+    print("________________")
+    print(f"Distance: {round(math.sqrt(test_obj.pos[0]**2 + test_obj.pos[1]**2), 2)} m")
+    print(f"Apogee: {round(max_test_height, 2)} m/s")
+    print(f"Max Velocity: {round(max_test_velocity, 2)} m/s")
 
     if plot:
         fig = plt.figure()
