@@ -1,5 +1,9 @@
+from math import cos, sin
+
 import numpy as np
 import pandas as pd
+
+from utils import cart2sphere, sphere2cart
 
 
 class Object:
@@ -35,10 +39,9 @@ class Object:
 
     def __init__(
         self,
-        pos: np.ndarray = np.zeros(3),
-        vel: np.ndarray = np.zeros(3),
-        acc: np.ndarray = np.zeros(3),
-        terminal_vel: np.ndarray = np.array([150, 150, 150]),
+        radius: float = 6371000,
+        theta: float = 0,
+        phi: float = 0,
         record: bool = False,
     ):
         """
@@ -56,27 +59,16 @@ class Object:
         record : bool
             Whether the object should record its motion
         """
+        self.pos = sphere2cart(np.array([radius, theta, phi]))
+        self.vel = np.array([0.0, 0.0, 0.0])
+        self.acc = np.array([0.0, 0.0, 0.0])
 
-        # Check for each argument whether its an np.ndarray, if not try to cast it
-        args = {"pos": pos, "vel": vel, "acc": acc, "terminal_vel": terminal_vel}
-        for key in args:
-            if not isinstance(args[key], np.ndarray):
-                try:
-                    args[key] = np.array(args[key])
-                except TypeError:
-                    print(f"{args[key]} is not of type np.ndarray")
-
-        self.pos = args["pos"]
-        self.vel = args["vel"]
-        self.acc = args["acc"]
-        self.terminal_vel = args["terminal_vel"]
         self.state_list = [False, False]
-
         if record:
             self.record = True
             self.motion_table = pd.DataFrame()
 
-    def trigger(self, timestep_s):
+    def trigger(self, timestep_s: float):
         """
         Calculates the motion for the next timestep. If `self.record` is set to True
         it will also call `self.record_motion()` to append a new record
@@ -87,56 +79,111 @@ class Object:
             The duration of one timestep in (fractions of) seconds
         """
         t = timestep_s
+
         self.pos = self.pos + self.vel * t + 0.5 * self.acc * t**2
         self.vel = self.vel + self.acc * t
 
         if self.record:
             self.record_motion(timestep_s)
 
-    def set_acceleration(self, acceleration: np.ndarray):
+    def conversion_matrix_cartesian(self) -> np.ndarray:
+        _, theta, phi = cart2sphere(self.pos)
+        matrix = np.array(
+            [
+                [cos(phi)*sin(theta), cos(phi)*cos(theta), -sin(phi)],
+                [sin(phi)*sin(theta), sin(phi)*cos(theta), cos(phi)],
+                [cos(theta), -sin(phi), 0],
+            ]
+        )
+        return matrix
+
+    def get_coords(self, system: str = "cartesian") -> np.ndarray:
         """
-        Sets the current acceleration to the passed vector. Expects a np.ndarray or something that can
-        be cast into a np.ndarray like a list or a tuple.
+        Retrieves the coordinates of the object in the specified coordinate system.
 
-        Parameters
-        __________
-        acceleration : np.ndarray
-            The acceleration vector for the object
+        Args:
+            system (str): The coordinate system to use, either "cartesian" or "spherical". Defaults to "cartesian".
 
-        Raises
-        ______
-        TypeError
-            If the acceleration parameter is not a np.ndarray and cannot be cast into one
+        Returns:
+            np.ndarray: The coordinates of the object in the specified coordinate system.
         """
-        if type(acceleration) != np.ndarray:
-            try:
-                acceleration = np.array(acceleration)
-            except TypeError:
-                print("acceleration is not of type np.ndarray")
-        self.acc = acceleration
+        if system == "cartesian":
+            return self.pos
+        elif system == "spherical":
+            return cart2sphere(self.pos)
+        else:
+            raise ValueError(
+                "Passed system parameter must be 'cartesian' or 'spherical'"
+            )
 
-    def add_to_acceleration(self, acceleration: np.ndarray):
+    def set_pos(self, pos_vector: np.ndarray, system: str = "cartesian"):
         """
-        Adds the passed acceleration vector to the objects current acceleration. Expects a np.ndarray
-        or something that can be cast into a np.ndarray like a list or a tuple.
+        Sets the position of the object in the specified coordinate system.
 
-        Parameters
-        __________
-        acceleration : np.ndarray
-            The acceleration vector added to the object
-
-        Raises
-        ______
-        TypeError
-            If the acceleration parameter is not a np.ndarray and cannot be cast into one
+        Args:
+            pos_vector (np.ndarray): The position vector in the specified coordinate system.
+            system (str): The coordinate system to use, either "cartesian" or "spherical". Defaults to "cartesian".
         """
-        if type(acceleration) != np.ndarray:
-            try:
-                acceleration = np.array(acceleration)
-            except TypeError:
-                print("acceleration is not of type np.ndarray")
-        new_acceleration = self.acc + acceleration
-        self.acc = new_acceleration
+        if system == "cartesian":
+            self.pos = pos_vector
+        elif system == "spherical":
+            self.pos = sphere2cart(pos_vector) 
+        else:
+            raise ValueError(
+                "Passed system parameter must be 'cartesian' or 'spherical'"
+            )
+
+    def set_velocity(self, vel_vector: np.ndarray, system: str = "cartesian"):
+        """
+        Sets the velocity of the object in the specified coordinate system.
+
+        Args:
+            vel_vector (np.ndarray): The velocity vector in the specified coordinate system.
+            system (str): The coordinate system to use, either "cartesian" or "spherical". Defaults to "cartesian".
+        """
+        if system == "cartesian":
+            self.vel = vel_vector
+        elif system == "spherical":
+            self.vel = np.dot(self.conversion_matrix_cartesian(), vel_vector)
+        else:
+            raise ValueError(
+                "Passed system parameter must be 'cartesian' or 'spherical'"
+            )
+
+    def set_acceleration(self, acc_vector: np.ndarray, system: str = "cartesian"):
+        """
+        Sets the acceleration of the object in the specified coordinate system.
+
+        Args:
+            acc_vector (np.ndarray): The acceleration vector in the specified coordinate system.
+            system (str): The coordinate system to use, either "cartesian" or "spherical". Defaults to "cartesian".
+        """
+        if system == "cartesian":
+            self.acc = acc_vector
+        elif system == "spherical":
+            self.acc = np.dot(self.conversion_matrix_cartesian(), acc_vector)
+
+        else:
+            raise ValueError(
+                "Passed system parameter must be 'cartesian' or 'spherical'"
+            )
+
+    def add_to_acceleration(self, acc_vector: np.ndarray, system: str = "cartesian"):
+        """
+        Adds the given acceleration vector to the current acceleration of the object in the specified coordinate system.
+
+        Args:
+            acc_vector (np.ndarray): The acceleration vector to add in the specified coordinate system.
+            system (str): The coordinate system to use, either "cartesian" or "spherical". Defaults to "cartesian".
+        """
+        if system == "cartesian":
+            self.acc = self.acc + acc_vector
+        elif system == "spherical":
+            self.acc = self.acc + np.dot(self.conversion_matrix_cartesian(), acc_vector)
+        else:
+            raise ValueError(
+                "Passed system parameter must be 'cartesian' or 'spherical'"
+            )
 
     def record_motion(self, timestep_s):
         """

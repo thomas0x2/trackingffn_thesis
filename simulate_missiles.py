@@ -9,19 +9,22 @@ Simulate Missiles
     This script requires Matplotlib.pyplot and the projects Class modules to 
     be installed in the environment its running in.
 """
-import time
 import argparse
 import math
+import time
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
-from object import Object
 from model import Model
+from object import Object
+from utils import cart2sphere
 
 
-def simulate_missiles(n_missiles, step_ms, d_s, realtime, plot):
+def simulate_missiles(
+    n_missiles, step_ms, d_s, realtime, plot, print_pos, print_vel, print_acc
+):
     """
     Generates the simulation data for the missiles motion
 
@@ -41,12 +44,13 @@ def simulate_missiles(n_missiles, step_ms, d_s, realtime, plot):
 
     # Initialization
     model = Model(step_ms / 1000)
-    test_obj = Object(pos=[0, 0, 0], vel=[0, 0, 0], acc=[66, 33, 110], record=True)
-    booster = True
+
+    # (0,0,0) N
+    test_obj = Object(theta=math.pi / 2, record=True)
+    test_obj.set_velocity(np.array([3800, 0.0, 4500]), system="spherical")
     model.add_Object(test_obj)
 
     # Preparation
-    model.prepare()
     max_test_height = 0
     max_test_velocity = 0
 
@@ -56,15 +60,19 @@ def simulate_missiles(n_missiles, step_ms, d_s, realtime, plot):
         start_time = time.time()
 
         # TODO: Implement booster in new missile class
-        if booster:
-            if time_passed_ms >= 30 * 1000:
-                test_obj.add_to_acceleration([-66, -33, -110])
-                booster = False
 
         # Run simulation and record motion
         model.trigger()
         if time_passed_ms % 1000 == 0:
-            print(test_obj.pos)
+            if print_pos:
+                height, lat, long = test_obj.get_coords(system="spherical")
+                print(
+                    f"Object height: {round(height-6371000, 2)}     Object coords: ({round(lat, 6)}, {round(long, 6)})"
+                )
+            if print_vel:
+                print(f"Velocity[x, y, z]: {test_obj.vel}")
+            if print_acc:
+                print(f"Acceleration[x, y, z]: {test_obj.acc}")
 
         # If running the simulation in real time
         if realtime:
@@ -89,18 +97,29 @@ def simulate_missiles(n_missiles, step_ms, d_s, realtime, plot):
     print("Flight Statistic")
     print("________________")
     print(f"Distance: {round(math.sqrt(test_obj.pos[0]**2 + test_obj.pos[1]**2), 2)} m")
-    print(f"Apogee: {round(max_test_height, 2)} m/s")
+    print(f"Apogee: {round(max_test_height, 2)} m")
     print(f"Max Velocity: {round(max_test_velocity, 2)} m/s")
 
     if plot:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
+        R = 6371000
+        theta = np.linspace(0, np.pi/2, 100)
+        x = R * np.cos(theta)
+        y = R * np.sin(theta)
+        plt.plot(x, y, label='Quarter Circle')
 
         ax.plot(
             test_obj.motion_table["pos_x"],
             test_obj.motion_table["pos_y"],
             test_obj.motion_table["pos_z"],
         )
+
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Z")
+        ax.set_aspect("equal")
+
         plt.show()
 
 
@@ -123,10 +142,34 @@ def main():
         action="store_true",
         help="Whether a plot of the objects trajectories should be shown",
     )
+    parser.add_argument(
+        "--pos",
+        action="store_true",
+        help="Whether the objects position should be printed to console",
+    )
+    parser.add_argument(
+        "--vel",
+        action="store_true",
+        help="Whether the objects velocity should be printed to console",
+    )
+    parser.add_argument(
+        "--acc",
+        action="store_true",
+        help="Whether the objects acceleration should be printed to console",
+    )
 
     args = parser.parse_args()
 
-    simulate_missiles(args.n_missiles, args.step_ms, args.d_s, args.realtime, args.plot)
+    simulate_missiles(
+        args.n_missiles,
+        args.step_ms,
+        args.d_s,
+        args.realtime,
+        args.plot,
+        args.pos,
+        args.vel,
+        args.acc,
+    )
 
 
 if __name__ == "__main__":

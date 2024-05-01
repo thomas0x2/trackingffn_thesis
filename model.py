@@ -1,8 +1,9 @@
+import math
+
 import numpy as np
 
 from object import Object
-
-gravity = [0, 0, -9.81]
+from utils import cart2sphere, sphere2cart
 
 
 class Model:
@@ -57,18 +58,20 @@ class Model:
         """
         Prepares the model and its objects. E.g. applying gravity
         """
-        for obj in self.obj_container:
-            obj.add_to_acceleration(gravity)
-            self.obj_state_table[obj][0] = True
+        pass
 
     def trigger(self):
         """
         Triggers each object in the `obj_container`, handles Collision
         """
         for obj in self.obj_container:
+            r, theta, _ = obj.get_coords(system="spherical")
+            gravity = np.array([-9.81, 0, 0])
+            gravity_cart = np.dot(obj.conversion_matrix_cartesian(), gravity)
+            obj.add_to_acceleration(gravity_cart)
             obj.trigger(self.step_s)
+            obj.add_to_acceleration(-gravity_cart)
 
-            if obj.pos[2] < 0:
-                obj.pos[2] = 0
+            if r < 6371000:
                 obj.vel = np.array([0, 0, 0])
                 obj.acc = np.array([0, 0, 0])
