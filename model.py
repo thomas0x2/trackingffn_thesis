@@ -5,6 +5,9 @@ import numpy as np
 from object import Object
 from utils import cart2sphere, sphere2cart
 
+GRAVITY_CONSTANT = 6.674 * 10**(-11)
+EARTH_MASS = 5.974 * 10**24
+EARTH_RADIUS = 6.378 * 10**6
 
 class Model:
     """
@@ -66,12 +69,14 @@ class Model:
         """
         for obj in self.obj_container:
             r, theta, _ = obj.get_coords(system="spherical")
-            gravity = np.array([-9.81, 0, 0])
-            gravity_cart = np.dot(obj.conversion_matrix_cartesian(), gravity)
-            obj.add_to_acceleration(gravity_cart)
-            obj.trigger(self.step_s)
-            obj.add_to_acceleration(-gravity_cart)
 
-            if r < 6371000:
+            gravity_force_abs = GRAVITY_CONSTANT * EARTH_MASS * obj.mass / r**2
+            print(gravity_force_abs/obj.mass)
+            gravity_force_vector_spherical = np.array([-gravity_force_abs, 0, 0])
+            gravity_force_vector_cartesian  = np.dot(obj.conversion_matrix_cartesian(), gravity_force_vector_spherical)
+
+            obj.trigger(self.step_s, force=gravity_force_vector_cartesian)
+
+            if r < EARTH_RADIUS:
                 obj.vel = np.array([0, 0, 0])
                 obj.acc = np.array([0, 0, 0])

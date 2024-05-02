@@ -21,10 +21,10 @@ from model import Model
 from object import Object
 from utils import cart2sphere
 
+EARTH_RADIUS = 6.378 * 10**6
 
-def simulate_missiles(
-    n_missiles, step_ms, d_s, realtime, plot, print_pos, print_vel, print_acc
-):
+
+def simulate_missiles(n_missiles, step_ms, d_s, plot, print_pos, print_vel, print_acc):
     """
     Generates the simulation data for the missiles motion
 
@@ -46,7 +46,7 @@ def simulate_missiles(
     model = Model(step_ms / 1000)
 
     # (0,0,0) N
-    test_obj = Object(theta=math.pi / 2, record=True)
+    test_obj = Object(theta=math.pi / 2, mass=32158, record=True)
     test_obj.set_velocity(np.array([3800, 0.0, 4500]), system="spherical")
     model.add_Object(test_obj)
 
@@ -67,22 +67,15 @@ def simulate_missiles(
             if print_pos:
                 height, lat, long = test_obj.get_coords(system="spherical")
                 print(
-                    f"Object height: {round(height-6371000, 2)}     Object coords: ({round(lat, 6)}, {round(long, 6)})"
+                    f"Object height: {round(height-EARTH_RADIUS, 2)}     Object coords: ({round(lat, 6)}, {round(long, 6)})"
                 )
             if print_vel:
                 print(f"Velocity[x, y, z]: {test_obj.vel}")
             if print_acc:
                 print(f"Acceleration[x, y, z]: {test_obj.acc}")
 
-        # If running the simulation in real time
-        if realtime:
-            end_time = time.time()
-            execution_time = end_time - start_time
-            if execution_time < step_ms:
-                time.sleep(step_ms / 1000 - execution_time)
-
         # Record max height
-        test_height = test_obj.pos[2]
+        test_height = cart2sphere(test_obj.pos)[0] - EARTH_RADIUS
         if test_height > max_test_height:
             max_test_height = test_height
 
@@ -94,20 +87,43 @@ def simulate_missiles(
         # Increment the passed time
         time_passed_ms += step_ms
 
+    start_pos = cart2sphere(
+        np.array(
+            [
+                test_obj.motion_table["pos_x"].iloc[0],
+                test_obj.motion_table["pos_y"].iloc[0],
+                test_obj.motion_table["pos_z"].iloc[0],
+            ]
+        )
+    )
+    end_pos = cart2sphere(
+        np.array(
+            [
+                test_obj.motion_table["pos_x"].iloc[-1],
+                test_obj.motion_table["pos_x"].iloc[-1],
+                test_obj.motion_table["pos_x"].iloc[-1],
+            ]
+        )
+    )
+    dsigma = math.acos(
+        math.sin(start_pos[1]) * math.sin(end_pos[1])
+        + math.cos(start_pos[1])
+        * math.cos(end_pos[1])
+        * math.cos(start_pos[2] - end_pos[2])
+    )
     print("Flight Statistic")
     print("________________")
-    print(f"Distance: {round(math.sqrt(test_obj.pos[0]**2 + test_obj.pos[1]**2), 2)} m")
-    print(f"Apogee: {round(max_test_height, 2)} m")
-    print(f"Max Velocity: {round(max_test_velocity, 2)} m/s")
+    print(f"Distance: {round(dsigma * EARTH_RADIUS / 1000, 1)} km")
+    print(f"Apogee: {round(max_test_height / 1000, 1)} km")
+    print(f"Max Velocity: {round(max_test_velocity, 1)} m/s")
 
     if plot:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
-        R = 6371000
-        theta = np.linspace(0, np.pi/2, 100)
-        x = R * np.cos(theta)
-        y = R * np.sin(theta)
-        plt.plot(x, y, label='Quarter Circle')
+        theta = np.linspace(0, np.pi / 2, 100)
+        x = EARTH_RADIUS * np.cos(theta)
+        y = EARTH_RADIUS * np.sin(theta)
+        plt.plot(x, y, label="Quarter Circle")
 
         ax.plot(
             test_obj.motion_table["pos_x"],
@@ -132,11 +148,6 @@ def main():
         help="Timesteps the simulation takes for each calculation in ms",
     )
     parser.add_argument("d_s", type=int, help="How long the simulation runs in seconds")
-    parser.add_argument(
-        "--realtime",
-        action="store_true",
-        help="Whether or not the simulation should run in realtime",
-    )
     parser.add_argument(
         "--plot",
         action="store_true",
@@ -164,7 +175,6 @@ def main():
         args.n_missiles,
         args.step_ms,
         args.d_s,
-        args.realtime,
         args.plot,
         args.pos,
         args.vel,

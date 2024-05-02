@@ -5,6 +5,7 @@ import pandas as pd
 
 from utils import cart2sphere, sphere2cart
 
+EARTH_RADIUS = 6.378 * 10**6
 
 class Object:
     """
@@ -39,9 +40,10 @@ class Object:
 
     def __init__(
         self,
-        radius: float = 6371000,
+        radius: float = EARTH_RADIUS,
         theta: float = 0,
         phi: float = 0,
+        mass: float = 100,
         record: bool = False,
     ):
         """
@@ -62,13 +64,14 @@ class Object:
         self.pos = sphere2cart(np.array([radius, theta, phi]))
         self.vel = np.array([0.0, 0.0, 0.0])
         self.acc = np.array([0.0, 0.0, 0.0])
+        self.mass = mass
 
         self.state_list = [False, False]
         if record:
             self.record = True
             self.motion_table = pd.DataFrame()
 
-    def trigger(self, timestep_s: float):
+    def trigger(self, timestep_s: float, force: np.ndarray = np.zeros(3)):
         """
         Calculates the motion for the next timestep. If `self.record` is set to True
         it will also call `self.record_motion()` to append a new record
@@ -79,9 +82,11 @@ class Object:
             The duration of one timestep in (fractions of) seconds
         """
         t = timestep_s
+        add_acc = force / self.mass
+        acc = self.acc + add_acc
 
-        self.pos = self.pos + self.vel * t + 0.5 * self.acc * t**2
-        self.vel = self.vel + self.acc * t
+        self.pos = self.pos + self.vel * t + 0.5 * acc * t**2
+        self.vel = self.vel + acc * t
 
         if self.record:
             self.record_motion(timestep_s)
