@@ -43,11 +43,11 @@ def simulate_missiles(n_missiles, step_ms, d_s, plot, print_pos, print_vel, prin
     """
 
     # Initialization
-    model = Model(step_ms / 1000)
+    model = Model(np.longdouble(step_ms / 1000))
 
     # (0,0,0) N
-    test_obj = Object(theta=math.pi / 2, mass=32158, record=True)
-    test_obj.set_velocity(np.array([3800, 0.0, 4500]), system="spherical")
+    test_obj = Object(pos_sphere=[EARTH_RADIUS, math.pi / 2, 0], mass=32158, record=True)
+    test_obj.set_velocity([3800, 0.0, 4500], system="spherical")
     model.add_Object(test_obj)
 
     # Preparation
@@ -56,9 +56,7 @@ def simulate_missiles(n_missiles, step_ms, d_s, plot, print_pos, print_vel, prin
 
     # Running
     time_passed_ms = 0
-    while time_passed_ms / 1000 < d_s:
-        start_time = time.time()
-
+    while time_passed_ms < d_s * 1000:
         # TODO: Implement booster in new missile class
 
         # Run simulation and record motion
@@ -87,6 +85,7 @@ def simulate_missiles(n_missiles, step_ms, d_s, plot, print_pos, print_vel, prin
         # Increment the passed time
         time_passed_ms += step_ms
 
+    # Distance calculation, currently doesn't work for movements only along the equator
     start_pos = cart2sphere(
         np.array(
             [
@@ -100,8 +99,8 @@ def simulate_missiles(n_missiles, step_ms, d_s, plot, print_pos, print_vel, prin
         np.array(
             [
                 test_obj.motion_table["pos_x"].iloc[-1],
-                test_obj.motion_table["pos_x"].iloc[-1],
-                test_obj.motion_table["pos_x"].iloc[-1],
+                test_obj.motion_table["pos_y"].iloc[-1],
+                test_obj.motion_table["pos_z"].iloc[-1],
             ]
         )
     )
@@ -111,6 +110,7 @@ def simulate_missiles(n_missiles, step_ms, d_s, plot, print_pos, print_vel, prin
         * math.cos(end_pos[1])
         * math.cos(start_pos[2] - end_pos[2])
     )
+
     print("Flight Statistic")
     print("________________")
     print(f"Distance: {round(dsigma * EARTH_RADIUS / 1000, 1)} km")

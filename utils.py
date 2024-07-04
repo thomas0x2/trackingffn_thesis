@@ -2,7 +2,8 @@ import numpy as np
 from math import cos, sin, sqrt, acos, atan2
 
 
-def sphere2cart(coords: np.ndarray) -> np.ndarray:
+def sphere2cart(coords) -> np.ndarray:
+    coords = np.array(coords)
     r = coords[0]
     theta = coords[1]
     phi = coords[2]
@@ -15,7 +16,8 @@ def sphere2cart(coords: np.ndarray) -> np.ndarray:
     )
 
 
-def cart2sphere(coords: np.ndarray) -> np.ndarray:
+def cart2sphere(coords) -> np.ndarray:
+    coords = np.array(coords)
     x = coords[0]
     y = coords[1]
     z = coords[2]

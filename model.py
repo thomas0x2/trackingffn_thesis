@@ -1,4 +1,4 @@
-import math
+from math import sin, cos
 
 import numpy as np
 
@@ -17,8 +17,6 @@ class Model:
     __________
     obj_container : list(Object)
         Holds all Objects in the World
-    obj_state_table : dict(Object, list)
-        Holds key value pais of Objects and their state list
     step_s : float
         The timesteps in (fractions of) seconds
 
@@ -42,7 +40,6 @@ class Model:
             The timesteps in (fractions of) seconds
         """
         self.obj_container = []
-        self.obj_state_table = {}
         self.step_s = step_s
 
     def add_Object(self, object: Object):
@@ -55,28 +52,78 @@ class Model:
             Object to be added to the model
         """
         self.obj_container.append(object)
-        self.obj_state_table[object] = object.state_list
 
-    def prepare(self):
+    def calculate_gravity(self, pos_cart, mass: float) -> np.ndarray:
         """
-        Prepares the model and its objects. E.g. applying gravity
+        Calculates the cartesian force vector for gravity.
+
+        Parameters
+        __________
+        pos_cart : array-like
+            The position of the object in cartesian coordinates.
+        mass : float
+            The mass of the object in kilograms.
+
+        Returns
+        __________
+        np.ndarray
+            A numpy array representing the cartesian force vector (Fx, Fy, Fz) in Newtons.
+        
         """
-        pass
+        pos_cart = np.array(pos_cart)
+        r, theta, phi = cart2sphere(pos_cart)
+        gravity_force_abs = GRAVITY_CONSTANT * EARTH_MASS * mass / r**2 
+        gravity_force_vector_sphere = np.array([-gravity_force_abs, 0.0, 0.0])
+        rotation_matrix  = np.array(
+            [
+                [cos(phi)*sin(theta), cos(phi)*cos(theta), -sin(phi)],
+                [sin(phi)*sin(theta), sin(phi)*cos(theta), cos(phi)],
+                [cos(theta), -sin(phi), 0],
+            ]
+        )
+
+        return np.dot(rotation_matrix, gravity_force_vector_sphere)
 
     def trigger(self):
         """
-        Triggers each object in the `obj_container`, handles Collision
+        Handles the physics simulation. Uses the 4th order Runge-Kutta method to numerically solve the differential equation systems of motion for each object.
         """
         for obj in self.obj_container:
-            r, theta, _ = obj.get_coords(system="spherical")
+            height, _, _ = obj.get_coords(system="spherical")
+            if height < EARTH_RADIUS:
+                obj.stop()
+                continue
+                
+            r = obj.get_coords(system="cartesian")
+            v = obj.get_velocity(system="cartesian")
+            a = obj.get_acceleration(system="cartesian")
+            dt = self.step_s
+            m = obj.mass
 
-            gravity_force_abs = GRAVITY_CONSTANT * EARTH_MASS * obj.mass / r**2
-            print(gravity_force_abs/obj.mass)
-            gravity_force_vector_spherical = np.array([-gravity_force_abs, 0, 0])
-            gravity_force_vector_cartesian  = np.dot(obj.conversion_matrix_cartesian(), gravity_force_vector_spherical)
+            def acceleration(r):
+                gravity = self.calculate_gravity(r, m)
+                a_gravity = gravity / m
+                return a + a_gravity
 
-            obj.trigger(self.step_s, force=gravity_force_vector_cartesian)
+            # 4th Order Runge-Kutta method
+            k1v = acceleration(r)
+            k1r = v
 
-            if r < EARTH_RADIUS:
-                obj.vel = np.array([0, 0, 0])
-                obj.acc = np.array([0, 0, 0])
+            k2v = acceleration(r + 0.5 * k1r * dt)
+            k2r = v + 0.5 * k1v * dt
+
+            k3v = acceleration(r + 0.5 * k2r * dt)
+            k3r = v + 0.5 * k2v * dt
+
+            k4v = acceleration(r + k3r * dt)
+            k4r = v + k3v * dt
+
+            r_new = r + dt/6 * (k1r + 2*k2r + 2*k3r + k4r)
+            v_new = v + dt/6 * (k1v + 2*k2v + 2*k3v + k4v)
+
+            obj.set_pos(r_new)
+            obj.set_velocity(v_new)
+
+            if obj.record:
+                obj.record_motion(dt)
+
