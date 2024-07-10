@@ -60,7 +60,6 @@ def simulate_missiles(n_missiles, step_ms, d_s, plot, print_pos, print_vel, prin
         # TODO: Implement booster in new missile class
 
         # Run simulation and record motion
-        model.trigger()
         if time_passed_ms % 1000 == 0:
             if print_pos:
                 height, lat, long = test_obj.get_coords(system="spherical")
@@ -71,6 +70,7 @@ def simulate_missiles(n_missiles, step_ms, d_s, plot, print_pos, print_vel, prin
                 print(f"Velocity[x, y, z]: {test_obj.vel}")
             if print_acc:
                 print(f"Acceleration[x, y, z]: {test_obj.acc}")
+        model.trigger()
 
         # Record max height
         test_height = cart2sphere(test_obj.pos)[0] - EARTH_RADIUS

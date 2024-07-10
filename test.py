@@ -1,12 +1,11 @@
 #! /usr/bin/env python3
 import object, model
 import unittest
-import numpy as np
 from utils import sphere2cart
 
 EARTH_RADIUS = 6.378 * 10**6
 
-def run_simulation(duration_s: int, acc_x: float = 0, acc_y: float = 0, acc_z: float = 15):
+def run_simulation(duration_s: int):
     t_ms = 50
     sim_env = model.Model(t_ms/1000)
     test_obj = object.Object(record=True)

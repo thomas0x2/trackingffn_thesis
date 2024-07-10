@@ -1,0 +1,4 @@
+CompileFlags:
+  Add:
+    - "-std=c++11"
+    - "-I/Users/thomasbollenbach/Workspace/Bachelorarbeit/python/env/lib/python3.11/site-packages/pybind11/include"

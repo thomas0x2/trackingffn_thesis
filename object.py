@@ -1,9 +1,9 @@
-from math import cos, sin
+from typing import List
 
 import numpy as np
 import pandas as pd
 
-from utils import cart2sphere, sphere2cart
+from utils import cart2sphere, sphere2cart, rotation_matrix_cartesian
 
 EARTH_RADIUS = 6.378 * 10**6
 
@@ -72,19 +72,8 @@ class Object:
             self.record = True
             self.motion_table = pd.DataFrame()
 
-    def conversion_matrix_cartesian(self) -> np.ndarray:
-        """
-        Returns the conversion matrix to convert spherical velocity or acceleration vectors to cartesian.
-        """
-        _, theta, phi = cart2sphere(self.pos)
-        matrix = np.array(
-            [
-                [cos(phi)*sin(theta), cos(phi)*cos(theta), -sin(phi)],
-                [sin(phi)*sin(theta), sin(phi)*cos(theta), cos(phi)],
-                [cos(theta), -sin(phi), 0],
-            ]
-        )
-        return matrix
+    def get_state(self) -> List:
+        return [self.pos, self.vel, self.acc, self.mass]
 
     def get_coords(self, system: str = "cartesian") -> np.ndarray:
         """
@@ -126,7 +115,8 @@ class Object:
         if system == "cartesian":
             return self.vel
         elif system == "spherical":
-            rotation_matrix = self.conversion_matrix_cartesian()
+            _, theta, phi = self.get_coords(system="spherical")
+            rotation_matrix = rotation_matrix_cartesian(theta, phi)
             return np.linalg.solve(rotation_matrix, self.vel)
         else:
             raise ValueError(
@@ -145,7 +135,9 @@ class Object:
         if system == "cartesian":
             self.vel = vel_vector
         elif system == "spherical":
-            self.vel = np.dot(self.conversion_matrix_cartesian(), vel_vector)
+            _, theta, phi = self.get_coords(system="spherical")
+            rotation_matrix = rotation_matrix_cartesian(theta, phi)
+            self.vel = np.dot(rotation_matrix, vel_vector)
         else:
             raise ValueError(
                 "Passed system parameter must be 'cartesian' or 'spherical'"
@@ -155,7 +147,8 @@ class Object:
         if system == "cartesian":
             return self.acc
         elif system == "spherical":
-            rotation_matrix = self.conversion_matrix_cartesian()
+            _, theta, phi = self.get_coords(system="spherical")
+            rotation_matrix = rotation_matrix_cartesian(theta, phi)
             return np.linalg.solve(rotation_matrix, self.acc)
         else:
             raise ValueError(
@@ -174,7 +167,9 @@ class Object:
         if system == "cartesian":
             self.acc = acc_vector
         elif system == "spherical":
-            self.acc = np.dot(self.conversion_matrix_cartesian(), acc_vector)
+            _, theta, phi = self.get_coords(system="spherical")
+            rotation_matrix = rotation_matrix_cartesian(theta, phi)
+            self.acc = np.dot(rotation_matrix, acc_vector)
 
         else:
             raise ValueError(
@@ -193,7 +188,9 @@ class Object:
         if system == "cartesian":
             self.acc = self.acc + acc_vector
         elif system == "spherical":
-            self.acc = self.acc + np.dot(self.conversion_matrix_cartesian(), acc_vector)
+            _, theta, phi = self.get_coords(system="spherical")
+            rotation_matrix = rotation_matrix_cartesian(theta, phi)
+            self.acc = self.acc + np.dot(rotation_matrix, acc_vector)
         else:
             raise ValueError(
                 "Passed system parameter must be 'cartesian' or 'spherical'"

@@ -1,9 +1,9 @@
-from math import sin, cos
+from math import sin, cos, exp, sqrt
 
 import numpy as np
 
 from object import Object
-from utils import cart2sphere, sphere2cart
+from utils import cart2sphere, sphere2cart, rotation_matrix_cartesian
 
 GRAVITY_CONSTANT = 6.674 * 10**(-11)
 EARTH_MASS = 5.974 * 10**24
@@ -72,17 +72,65 @@ class Model:
         """
         pos_cart = np.array(pos_cart)
         r, theta, phi = cart2sphere(pos_cart)
-        gravity_force_abs = GRAVITY_CONSTANT * EARTH_MASS * mass / r**2 
-        gravity_force_vector_sphere = np.array([-gravity_force_abs, 0.0, 0.0])
-        rotation_matrix  = np.array(
-            [
-                [cos(phi)*sin(theta), cos(phi)*cos(theta), -sin(phi)],
-                [sin(phi)*sin(theta), sin(phi)*cos(theta), cos(phi)],
-                [cos(theta), -sin(phi), 0],
-            ]
-        )
+        gravity_force_abs = GRAVITY_CONSTANT * EARTH_MASS * mass / r**2
+        gravity_direction = np.array([-1, 0, 0])
+        gravity_force = gravity_force_abs * gravity_direction
+        rotation_matrix  = rotation_matrix_cartesian(theta, phi)
 
-        return np.dot(rotation_matrix, gravity_force_vector_sphere)
+        return np.dot(rotation_matrix, gravity_force)
+
+    def calculate_drag(self, pos, vel, drag_coefficient: float = 0.25, area: float = 2):
+        """
+        Calculates the drag force that applies to the object in Newtons as a cartesian vector (Fx, Fy, Fz).
+        """
+        pos = np.array(pos)
+        vel = np.array(vel)
+        v_abs = np.linalg.norm(vel)
+        if v_abs == 0:
+            return 0 
+        height, _, _ = cart2sphere(pos) - EARTH_RADIUS
+        
+        rho_0 = 1.225
+        scale_height = 8500
+        air_density = rho_0 * exp(-height/scale_height)
+
+        drag_abs = 0.5 * air_density * v_abs**2 * drag_coefficient * area
+        drag_direction = -vel / v_abs
+
+        return drag_abs * drag_direction
+
+    def acceleration(self, r, v, a, m) -> np.ndarray:
+        gravity = self.calculate_gravity(r, m)
+        a_gravity = gravity / m
+
+        drag = self.calculate_drag(r, v)
+        a_drag = drag / m
+
+        return a + a_gravity + a_drag
+
+
+
+    def calculate_runge_kutta_step(self, obj: Object, dt: float):
+        r, v, a, m = obj.get_state()
+
+        k1v = self.acceleration(r, v, a, m)
+        k1r = v
+
+        k2v = self.acceleration(r + 0.5 * k1r * dt, v + 0.5 * k1v * dt, a, m)
+        k2r = v + 0.5 * k1v * dt
+
+        k3v = self.acceleration(r + 0.5 * k2r * dt, v + 0.5 * k2v * dt, a, m)
+        k3r = v + 0.5 * k2v * dt
+
+        k4v = self.acceleration(r + k3r * dt, v + k3v * dt, a, m)
+        k4r = v + k3v * dt
+
+        r_new = r + dt/6 * (k1r + 2*k2r + 2*k3r + k4r)
+        v_new = v + dt/6 * (k1v + 2*k2v + 2*k3v + k4v)
+
+        return r_new, v_new
+
+
 
     def trigger(self):
         """
@@ -93,34 +141,9 @@ class Model:
             if height < EARTH_RADIUS:
                 obj.stop()
                 continue
-                
-            r = obj.get_coords(system="cartesian")
-            v = obj.get_velocity(system="cartesian")
-            a = obj.get_acceleration(system="cartesian")
+
             dt = self.step_s
-            m = obj.mass
-
-            def acceleration(r):
-                gravity = self.calculate_gravity(r, m)
-                a_gravity = gravity / m
-                return a + a_gravity
-
-            # 4th Order Runge-Kutta method
-            k1v = acceleration(r)
-            k1r = v
-
-            k2v = acceleration(r + 0.5 * k1r * dt)
-            k2r = v + 0.5 * k1v * dt
-
-            k3v = acceleration(r + 0.5 * k2r * dt)
-            k3r = v + 0.5 * k2v * dt
-
-            k4v = acceleration(r + k3r * dt)
-            k4r = v + k3v * dt
-
-            r_new = r + dt/6 * (k1r + 2*k2r + 2*k3r + k4r)
-            v_new = v + dt/6 * (k1v + 2*k2v + 2*k3v + k4v)
-
+            r_new, v_new = self.calculate_runge_kutta_step(obj, dt)
             obj.set_pos(r_new)
             obj.set_velocity(v_new)
 

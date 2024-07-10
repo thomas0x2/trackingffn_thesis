@@ -29,3 +29,18 @@ def cart2sphere(coords) -> np.ndarray:
             atan2(y, x),
         ]
     )
+
+def rotation_matrix_cartesian(theta, phi) -> np.ndarray:
+    """
+    Returns the conversion matrix to convert spherical velocity or acceleration vectors to cartesian.
+    """
+    matrix = np.array(
+        [
+            [cos(phi)*sin(theta), cos(phi)*cos(theta), -sin(phi)],
+            [sin(phi)*sin(theta), sin(phi)*cos(theta), cos(phi)],
+            [cos(theta), -sin(phi), 0],
+        ]
+    )
+    return matrix
+
+
