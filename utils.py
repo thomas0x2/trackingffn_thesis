@@ -43,4 +43,21 @@ def rotation_matrix_cartesian(theta, phi) -> np.ndarray:
     )
     return matrix
 
+def rotation_matrix_z(phi) -> np.ndarray:
+    matrix = np.array([
+            [cos(phi), -sin(phi), 0],
+            [sin(phi), cos(phi), 0],
+            [0, 0, 1],
+        ])
+    return matrix
 
+def rotation_matrix_y(theta) -> np.ndarray:
+    matrix = np.array([
+            [cos(theta), 0, sin(theta)],
+            [0, 1, 0],
+            [-sin(theta), 0, cos(theta)],
+        ])
+    return matrix
+
+def rotate_vector(theta, phi, vec) -> np.ndarray:
+    return np.dot(rotation_matrix_y(theta), np.dot(rotation_matrix_z(phi), vec))
